@@ -24,42 +24,136 @@
 
     <div class="flex flex-col md:flex-row min-h-screen">
 
-        <aside class="w-full md:w-1/4 lg:w-1/5 bg-gray-200 dark:bg-gray-800 p-6 md:p-8 border-r border-gray-300 dark:border-gray-700">
+        <aside class="w-full md:w-1/4 lg:w-1/5 bg-gray-200 dark:bg-gray-800 p-6 md:p-8 border-r border-gray-300 dark:border-gray-700 rounded-bl-lg md:rounded-bl-none md:rounded-tr-lg">
             <div class="text-center md:text-left">
-                <img src="images\davis_k profile.jpeg" alt="Profile Picture" class="w-24 h-24 rounded-full mx-auto md:mx-0 mb-4 object-cover">
+                <!-- Using a placeholder image for demonstration -->
+                <img src="https://placehold.co/96x96/aabbcc/ffffff?text=davis_k" alt="Profile Picture" class="w-24 h-24 rounded-full mx-auto md:mx-0 mb-4 object-cover border-2 border-blue-500 shadow-lg">
                 <h2 class="text-2xl font-bold mb-2">davis_k</h2>
                 <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">CS Undergraduate | Tech Enthusiast | LLM Trainer </p>
                 <nav>
                     <ul class="space-y-2">
-                        <li><a href="#" class="text-blue-600 hover:underline dark:text-blue-400">About Me</a></li>
-                        <li><a href="#" class="text-blue-600 hover:underline dark:text-blue-400">Projects</a></li>
-                        <li><a href="#" class="text-blue-600 hover:underline dark:text-blue-400">Contact</a></li>
-                        </ul>
+                        <li><a href="#" class="text-blue-600 hover:underline dark:text-blue-400 font-medium">About Me</a></li>
+                        <li><a href="#" class="text-blue-600 hover:underline dark:text-blue-400 font-medium">Projects</a></li>
+                        <li><a href="#" class="text-blue-600 hover:underline dark:text-blue-400 font-medium">Contact</a></li>
+                    </ul>
                 </nav>
             </div>
         </aside>
 
         <main class="flex-1 p-6 md:p-8">
-            <div class="w-full py-8 text-center">
+            <div class="w-full py-8 text-center bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg shadow-xl mb-10">
                 <h1 class="text-4xl md:text-6xl font-bold title-font">
                     davis_k's Blog
                 </h1>
             </div>
-            <section class="mt-10">
-                <h2 class="text-3xl font-bold mb-6">Latest Posts</h2>
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-4">
-                    <h3 class="text-xl font-semibold mb-2">My First Blog Post</h3>
-                    <p class="text-gray-700 dark:text-gray-300">This is an example of a blog post summary. You can add more content here.</p>
-                    <a href="#" class="text-blue-600 hover:underline dark:text-blue-400 mt-2 inline-block">Read More</a>
-                </div>
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-                    <h3 class="text-xl font-semibold mb-2">Getting Started with Tailwind CSS</h3>
-                    <p class="text-gray-700 dark:text-gray-300">A quick guide to setting up and using Tailwind CSS for rapid UI development.</p>
-                    <a href="#" class="text-blue-600 hover:underline dark:text-blue-400 mt-2 inline-block">Read More</a>
+
+            <section class="mt-10 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl">
+                <h2 class="text-3xl font-bold mb-6 text-gray-900 dark:text-gray-100">Chat with My Local Llama 3.2 3B</h2>
+                <div id="llama-chat-widget" class="space-y-4">
+                    <div class="flex flex-col gap-2 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-inner h-64 overflow-y-auto" id="chat-display">
+                        <!-- Chat messages will appear here -->
+                        <div class="flex justify-start">
+                            <div class="bg-blue-200 text-blue-800 p-2 rounded-lg max-w-xs md:max-w-md shadow">
+                                Welcome! Ask me anything about LLMs, tech, or just say hello!
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="llama-prompt" placeholder="Type your question here..."
+                               class="flex-1 p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 placeholder-gray-400 shadow-sm">
+                        <button onclick="sendToLlamaAPI()"
+                                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+                            Ask Llama
+                        </button>
+                    </div>
+                    <div id="loading-indicator" class="hidden text-center text-blue-500 font-medium">
+                        Llama is thinking...
+                    </div>
                 </div>
             </section>
         </main>
-
     </div>
+
+    <script>
+        // --- API Key Configuration ---
+        // IMPORTANT: For a production blog accessible publicly, DO NOT hardcode your API key like this.
+        // Instead, proxy requests through your server-side to add the API key securely.
+        // For local development and testing, this is acceptable.
+        const API_KEY = "King_Llama"; // <--- REPLACE THIS WITH YOUR ACTUAL API KEY
+
+        // Replace with your actual local API endpoint
+        const API_ENDPOINT = "http://localhost:8000/chat/"; // <--- ENSURE YOUR FASTAPI IS RUNNING ON THIS ADDRESS AND PORT
+
+        const chatDisplay = document.getElementById('chat-display');
+        const llamaPromptInput = document.getElementById('llama-prompt');
+        const loadingIndicator = document.getElementById('loading-indicator');
+
+        // Function to scroll chat to bottom
+        function scrollToBottom() {
+            chatDisplay.scrollTop = chatDisplay.scrollHeight;
+        }
+
+        // Function to add a message to the chat display
+        function addMessage(sender, message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('flex', sender === 'user' ? 'justify-end' : 'justify-start');
+            messageDiv.innerHTML = `
+                <div class="p-2 rounded-lg max-w-xs md:max-w-md shadow ${sender === 'user' ? 'bg-green-200 text-green-800' : 'bg-blue-200 text-blue-800'}">
+                    ${message}
+                </div>
+            `;
+            chatDisplay.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        async function sendToLlamaAPI() {
+            const prompt = llamaPromptInput.value.trim();
+
+            if (!prompt) {
+                addMessage('system', "Please enter a question.");
+                return;
+            }
+
+            addMessage('user', prompt); // Display user's message
+            llamaPromptInput.value = ''; // Clear input field
+            loadingIndicator.classList.remove('hidden'); // Show loading indicator
+
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': API_KEY // Send your API key in the header
+                    },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`API error: ${response.status} - ${errorData.detail || response.statusText}`);
+                }
+
+                const data = await response.json();
+                addMessage('llama', data.response); // Display Llama's response
+
+            } catch (error) {
+                console.error("Error connecting to Llama API:", error);
+                addMessage('system', `Error: ${error.message}. Please ensure your local Llama API is running!`);
+            } finally {
+                loadingIndicator.classList.add('hidden'); // Hide loading indicator
+            }
+        }
+
+        // Allow sending message by pressing Enter key
+        llamaPromptInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendToLlamaAPI();
+            }
+        });
+
+        // Ensure initial scroll to bottom for welcome message
+        document.addEventListener('DOMContentLoaded', scrollToBottom);
+    </script>
 </body>
 </html>
