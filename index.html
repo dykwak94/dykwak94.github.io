@@ -18,6 +18,135 @@
         .title-font {
             font-family: 'Consolas', 'Courier New', monospace;
         }
+
+        /* Llama Chat Specific Styles */
+        body {
+            background-color: #f0f2f5;
+            /* Changed to flex for the chat container to be centered if standalone,
+               but for integration into blog, consider how it fits the overall layout. */
+            /* display: flex; */
+            /* justify-content: center; */
+            /* align-items: center; */
+            /* min-height: 100vh; */
+            /* margin: 0; */
+        }
+        .chat-container {
+            width: 100%;
+            max-width: 600px;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin: 2rem auto; /* Added margin for spacing within the blog */
+        }
+        .chat-header {
+            background-color: #4f46e5; /* Indigo 600 */
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: 600;
+            border-top-left-radius: 1rem;
+            border-top-right-radius: 1rem;
+        }
+        .chat-messages {
+            flex-grow: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            background-color: #f9fafb;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .message {
+            max-width: 80%;
+            padding: 0.75rem 1rem;
+            border-radius: 1rem;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+        .message.user {
+            background-color: #e0e7ff; /* Indigo 100 */
+            align-self: flex-end;
+            color: #312e81; /* Indigo 800 */
+            border-bottom-right-radius: 0.25rem;
+        }
+        .message.llama {
+            background-color: #ffffff;
+            border: 1px solid #e5e7eb; /* Gray 200 */
+            align-self: flex-start;
+            color: #1f2937; /* Gray 900 */
+            border-bottom-left-radius: 0.25rem;
+        }
+        .chat-input-area {
+            display: flex;
+            padding: 1rem;
+            border-top: 1px solid #e5e7eb; /* Gray 200 */
+            background-color: #ffffff;
+            border-bottom-left-radius: 1rem;
+            border-bottom-right-radius: 1rem;
+        }
+        .chat-input {
+            flex-grow: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db; /* Gray 300 */
+            border-radius: 0.75rem;
+            outline: none;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+        .chat-input:focus {
+            border-color: #4f46e5; /* Indigo 600 */
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+        .send-button {
+            background-color: #4f46e5; /* Indigo 600 */
+            color: white;
+            padding: 0.75rem 1.25rem;
+            border: none;
+            border-radius: 0.75rem;
+            margin-left: 0.75rem;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: background-color 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .send-button:hover {
+            background-color: #4338ca; /* Indigo 700 */
+        }
+        .send-button:active {
+            transform: scale(0.98);
+        }
+        .send-button:disabled {
+            background-color: #a5b4fc; /* Indigo 300 */
+            cursor: not-allowed;
+        }
+        .loading-indicator {
+            text-align: center;
+            padding: 1rem;
+            color: #6b7280; /* Gray 500 */
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #4f46e5;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
@@ -34,7 +163,7 @@
                         <li><a href="#" class="text-blue-600 hover:underline dark:text-blue-400">About Me</a></li>
                         <li><a href="#" class="text-blue-600 hover:underline dark:text-blue-400">Projects</a></li>
                         <li><a href="#" class="text-blue-600 hover:underline dark:text-blue-400">Contact</a></li>
-                        </ul>
+                    </ul>
                 </nav>
             </div>
         </aside>
@@ -58,8 +187,118 @@
                     <a href="#" class="text-blue-600 hover:underline dark:text-blue-400 mt-2 inline-block">Read More</a>
                 </div>
             </section>
+
+            <section class="mt-10">
+                <h2 class="text-3xl font-bold mb-6">Chat with Llama</h2>
+                <div class="chat-container">
+                    <div class="chat-header">
+                        Chat with Llama
+                    </div>
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="loading-indicator" id="loading-indicator">
+                            <span class="spinner"></span> Connecting to Llama...
+                        </div>
+                        </div>
+                    <div class="chat-input-area">
+                        <input type="text" id="user-input" class="chat-input" placeholder="Type your message...">
+                        <button id="send-button" class="send-button" disabled>Send</button>
+                    </div>
+                </div>
+            </section>
         </main>
 
     </div>
+
+    <script>
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const loadingIndicator = document.getElementById('loading-indicator');
+
+        // Replace with the actual URL of your Flask server
+        const FLASK_SERVER_URL = 'http://localhost:8000'; // Make sure your Flask server is running at this address
+
+        let isModelReady = false;
+
+        // Function to add a message to the chat window
+        function addMessage(sender, message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', sender);
+            messageDiv.textContent = message;
+            chatMessages.appendChild(messageDiv);
+            // Scroll to the bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Function to check if the model is ready
+        async function checkModelStatus() {
+            console.log(`Attempting to connect to Llama backend at: ${FLASK_SERVER_URL}/`);
+            try {
+                const response = await fetch(`${FLASK_SERVER_URL}/`);
+                if (response.ok) {
+                    isModelReady = true;
+                    loadingIndicator.style.display = 'none';
+                    sendButton.disabled = false;
+                    addMessage('llama', 'Hello! I am Llama. How can I help you today?');
+                } else {
+                    // Server responded, but model might still be loading (e.g., 503 status)
+                    const errorText = await response.text();
+                    console.error(`Error checking model status: Server responded with status ${response.status}. Response: ${errorText}`);
+                    loadingIndicator.textContent = `Error: Llama backend not ready (Status: ${response.status}). Please ensure the model is fully loaded. Retrying...`;
+                    setTimeout(checkModelStatus, 2000); // Retry every 2 seconds
+                }
+            } catch (error) {
+                console.error('Error checking model status: Failed to fetch.', error);
+                loadingIndicator.textContent = `Error: Could not connect to Llama backend at ${FLASK_SERVER_URL}. Please ensure the Flask server (app.py) is running and accessible. Retrying...`;
+                // If the server isn't reachable, keep trying
+                setTimeout(checkModelStatus, 2000); // Retry every 2 seconds
+            }
+        }
+
+        // Send message function
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (message === '') return;
+
+            addMessage('user', message);
+            userInput.value = '';
+            sendButton.disabled = true; // Disable button while waiting for response
+
+            try {
+                const response = await fetch(`${FLASK_SERVER_URL}/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Server responded with status ${response.status}.`);
+                }
+
+                const data = await response.json();
+                addMessage('llama', data.reply);
+            } catch (error) {
+                console.error('Error sending message:', error);
+                addMessage('llama', `Error: Could not connect to Llama. Please ensure the backend server is running and the model is loaded. (${error.message})`);
+            } finally {
+                sendButton.disabled = false; // Re-enable button
+                userInput.focus(); // Focus input for next message
+            }
+        }
+
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Initial check for model status
+        checkModelStatus();
+    </script>
 </body>
 </html>
