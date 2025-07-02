@@ -75,85 +75,140 @@
         </main>
     </div>
 
-    <script>
-        // --- API Key Configuration ---
-        // IMPORTANT: For a production blog accessible publicly, DO NOT hardcode your API key like this.
-        // Instead, proxy requests through your server-side to add the API key securely.
-        // For local development and testing, this is acceptable.
-        const API_KEY = "King_Llama"; // <--- REPLACE THIS WITH YOUR ACTUAL API KEY
+    <div id="llm-chat-container">
+    <div id="chat-history"></div>
+    <input type="text" id="user-input" placeholder="Type your message...">
+    <button id="send-button">Send</button>
+    <div id="loading-indicator" style="display:none;">Thinking...</div>
+</div>
 
-        // Replace with your actual local API endpoint
-        const API_ENDPOINT = "http://127.0.0.1:8000/chat/"; // <--- ENSURE YOUR FASTAPI IS RUNNING ON THIS ADDRESS AND PORT
-
-        const chatDisplay = document.getElementById('chat-display');
-        const llamaPromptInput = document.getElementById('llama-prompt');
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const chatHistory = document.getElementById('chat-history');
         const loadingIndicator = document.getElementById('loading-indicator');
 
-        // Function to scroll chat to bottom
-        function scrollToBottom() {
-            chatDisplay.scrollTop = chatDisplay.scrollHeight;
+        // IMPORTANT: Replace with your actual API URL.
+        // If running on the same machine, 'http://127.0.0.1:8000' is fine.
+        // If your blog is hosted elsewhere, you'll need a public IP or domain and
+        // consider CORS (see Security Considerations below).
+        const API_URL = 'http://127.0.0.1:8000/generate';
+
+        let messages = []; // To store conversation history
+
+        function appendMessage(sender, text) {
+            const messageElement = document.createElement('p');
+            messageElement.innerHTML = `<strong>${sender}:</strong> ${text}`;
+            chatHistory.appendChild(messageElement);
+            chatHistory.scrollTop = chatHistory.scrollHeight; // Scroll to bottom
         }
 
-        // Function to add a message to the chat display
-        function addMessage(sender, message) {
-            const messageDiv = document.createElement('div');
-            messageDiv.classList.add('flex', sender === 'user' ? 'justify-end' : 'justify-start');
-            messageDiv.innerHTML = `
-                <div class="p-2 rounded-lg max-w-xs md:max-w-md shadow ${sender === 'user' ? 'bg-green-200 text-green-800' : 'bg-blue-200 text-blue-800'}">
-                    ${message}
-                </div>
-            `;
-            chatDisplay.appendChild(messageDiv);
-            scrollToBottom();
-        }
+        async function sendMessage() {
+            const userMessage = userInput.value.trim();
+            if (userMessage === '') return;
 
-        async function sendToLlamaAPI() {
-            const prompt = llamaPromptInput.value.trim();
+            appendMessage('You', userMessage);
+            messages.push({ role: 'user', content: userMessage });
+            userInput.value = ''; // Clear input
 
-            if (!prompt) {
-                addMessage('system', "Please enter a question.");
-                return;
-            }
-
-            addMessage('user', prompt); // Display user's message
-            llamaPromptInput.value = ''; // Clear input field
-            loadingIndicator.classList.remove('hidden'); // Show loading indicator
+            loadingIndicator.style.display = 'block'; // Show loading
+            sendButton.disabled = true; // Disable button
 
             try {
-                const response = await fetch(API_ENDPOINT, {
+                const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': API_KEY // Send your API key in the header
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ prompt: prompt })
+                    body: JSON.stringify({
+                        messages: messages, // Send entire history
+                        max_tokens: 500 // Adjust as needed
+                    })
                 });
 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(`API error: ${response.status} - ${errorData.detail || response.statusText}`);
+                    throw new Error(`API Error: ${response.status} - ${errorData.detail || response.statusText}`);
                 }
 
                 const data = await response.json();
-                addMessage('llama', data.response); // Display Llama's response
+                const llmResponse = data.generated_text;
+                appendMessage('Llama', llmResponse);
+                messages.push({ role: 'assistant', content: llmResponse }); // Add LLM response to history
 
             } catch (error) {
-                console.error("Error connecting to Llama API:", error);
-                addMessage('system', `Error: ${error.message}. Please ensure your local Llama API is running!`);
+                console.error('Error fetching from LLM API:', error);
+                appendMessage('Error', 'Could not get a response from the LLM. Please try again later.');
             } finally {
-                loadingIndicator.classList.add('hidden'); // Hide loading indicator
+                loadingIndicator.style.display = 'none'; // Hide loading
+                sendButton.disabled = false; // Enable button
+                userInput.focus(); // Focus input for next message
             }
         }
 
-        // Allow sending message by pressing Enter key
-        llamaPromptInput.addEventListener('keypress', function(event) {
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (event) => {
             if (event.key === 'Enter') {
-                sendToLlamaAPI();
+                sendMessage();
             }
         });
 
-        // Ensure initial scroll to bottom for welcome message
-        document.addEventListener('DOMContentLoaded', scrollToBottom);
-    </script>
-</body>
-</html>
+        // Initial greeting
+        appendMessage('Llama', 'Hello! How can I assist you today?');
+    });
+</script>
+
+<style>
+    #llm-chat-container {
+        width: 100%;
+        max-width: 600px;
+        margin: 20px auto;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        font-family: 'Inter', sans-serif; /* Using Inter font */
+    }
+    #chat-history {
+        height: 300px;
+        overflow-y: auto;
+        border: 1px solid #eee;
+        padding: 10px;
+        margin-bottom: 10px;
+        background-color: #f9f9f9;
+        border-radius: 5px;
+    }
+    #chat-history p {
+        margin: 5px 0;
+        line-height: 1.4;
+    }
+    #user-input {
+        width: calc(100% - 80px); /* Adjust based on button width */
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        margin-right: 5px;
+    }
+    #send-button {
+        padding: 10px 15px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+    #send-button:hover {
+        background-color: #0056b3;
+    }
+    #send-button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+    }
+    #loading-indicator {
+        margin-top: 10px;
+        font-style: italic;
+        color: #555;
+    }
+</style>
